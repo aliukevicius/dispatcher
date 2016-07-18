@@ -18,6 +18,7 @@ type Dispatcher struct {
 	upgrader websocket.Upgrader
 
 	connections map[string]*websocket.Conn
+	handlers    map[string]map[string]Handler
 }
 
 var defaultDispatcherConfig = &DispatcherConfig{
@@ -32,22 +33,23 @@ func NewDispatcher(config *DispatcherConfig) *Dispatcher {
 	}
 
 	d := &Dispatcher{
-		config: config,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  config.ReadBufferSize,
 			WriteBufferSize: config.WriteBufferSize,
 		},
 		connections: map[string]*websocket.Conn{},
+		handlers:    map[string]map[string]Handler{},
 	}
 
 	return d
 }
 
-func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Header) (string, error) {
+//Handle upgrades http connection to websocket connection
+func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Header) (*Conn, error) {
 
 	c, err := d.upgrader.Upgrade(w, r, *h)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	id := uuid.NewV4().String()
@@ -56,7 +58,15 @@ func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Head
 
 	go d.readMessages(id)
 
-	return id, nil
+	conn := &Conn{
+		dispatcher: d,
+		conn:       c,
+		ID:         id,
+	}
+
+	d.handlers[id] = map[string]Handler{}
+
+	return conn, nil
 }
 
 func (d *Dispatcher) readMessages(connectionID string) {
@@ -83,5 +93,6 @@ func (d *Dispatcher) Close(ConnectionID string) {
 	if c, ok := d.connections[ConnectionID]; ok {
 		c.Close()
 		delete(d.connections, ConnectionID)
+		delete(d.handlers, ConnectionID)
 	}
 }
