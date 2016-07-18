@@ -1,10 +1,11 @@
 package dispatcher
 
 import (
+	"log"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/satori/go.uuid"
 )
 
 type DispatcherConfig struct {
@@ -15,6 +16,8 @@ type DispatcherConfig struct {
 type Dispatcher struct {
 	config   *DispatcherConfig
 	upgrader websocket.Upgrader
+
+	connections map[string]*websocket.Conn
 }
 
 var defaultDispatcherConfig = &DispatcherConfig{
@@ -22,7 +25,7 @@ var defaultDispatcherConfig = &DispatcherConfig{
 	WriteBufferSize: 1024,
 }
 
-func NewServer(config *DispatcherConfig) *http.Server {
+func NewDispatcher(config *DispatcherConfig) *Dispatcher {
 
 	if config == nil {
 		config = defaultDispatcherConfig
@@ -34,21 +37,51 @@ func NewServer(config *DispatcherConfig) *http.Server {
 			ReadBufferSize:  config.ReadBufferSize,
 			WriteBufferSize: config.WriteBufferSize,
 		},
+		connections: map[string]*websocket.Conn{},
 	}
 
-	s := &http.Server{
-		Addr:           ":8050",
-		Handler:        d,
-		ReadTimeout:    time.Second * 30,
-		WriteTimeout:   time.Second * 30,
-		MaxHeaderBytes: 1 << 20,
-	}
-
-	return s
+	return d
 }
 
-func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Header) (string, error) {
 
-	w.Write([]byte("It Worksssss!"))
+	c, err := d.upgrader.Upgrade(w, r, *h)
+	if err != nil {
+		return "", err
+	}
 
+	id := uuid.NewV4().String()
+
+	d.connections[id] = c
+
+	go d.readMessages(id)
+
+	return id, nil
+}
+
+func (d *Dispatcher) readMessages(connectionID string) {
+
+	c := d.connections[connectionID]
+
+	for {
+		mt, message, err := c.ReadMessage()
+		_ = mt
+		_ = message
+		if err != nil {
+			log.Println("read:", err)
+			break
+		}
+	}
+
+	//close connection if message reading stoped
+	d.Close(connectionID)
+}
+
+//Close connection
+func (d *Dispatcher) Close(ConnectionID string) {
+
+	if c, ok := d.connections[ConnectionID]; ok {
+		c.Close()
+		delete(d.connections, ConnectionID)
+	}
 }
