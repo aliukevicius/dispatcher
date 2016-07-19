@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -17,8 +18,9 @@ type Dispatcher struct {
 	config   *DispatcherConfig
 	upgrader websocket.Upgrader
 
-	connections map[string]*websocket.Conn
+	connections map[string]*Conn
 	handlers    map[string]map[string]Handler
+	rooms       map[string]map[string]*Conn
 }
 
 var defaultDispatcherConfig = &DispatcherConfig{
@@ -37,8 +39,9 @@ func NewDispatcher(config *DispatcherConfig) *Dispatcher {
 			ReadBufferSize:  config.ReadBufferSize,
 			WriteBufferSize: config.WriteBufferSize,
 		},
-		connections: map[string]*websocket.Conn{},
+		connections: map[string]*Conn{},
 		handlers:    map[string]map[string]Handler{},
+		rooms:       map[string]map[string]*Conn{},
 	}
 
 	return d
@@ -74,7 +77,7 @@ func (d *Dispatcher) readMessages(connectionID string) {
 	c := d.connections[connectionID]
 
 	for {
-		mt, message, err := c.ReadMessage()
+		mt, message, err := c.conn.ReadMessage()
 		_ = mt
 		_ = message
 		if err != nil {
@@ -87,11 +90,29 @@ func (d *Dispatcher) readMessages(connectionID string) {
 	d.Close(connectionID)
 }
 
+//Broadcast sends message to all connections which are in the room
+func (d *Dispatcher) Broadcast(room string, event string, msg interface{}) error {
+
+	connections, ok := d.rooms[room]
+	if ok == false {
+		return errors.New("Room doesn't exist")
+	}
+
+	for _, c := range connections {
+		err := c.Emit(event, msg)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 //Close connection
 func (d *Dispatcher) Close(ConnectionID string) {
 
 	if c, ok := d.connections[ConnectionID]; ok {
-		c.Close()
+		c.conn.Close()
 		delete(d.connections, ConnectionID)
 		delete(d.handlers, ConnectionID)
 	}

@@ -47,8 +47,3 @@ func (c *Conn) Emit(event string, message interface{}) error {
 
 	return nil
 }
-
-//Broadcast sends message to all connections which are in the room
-func (c *Conn) Broadcast(room string, event string, msg MessageData) {
-
-}
