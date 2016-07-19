@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -57,15 +58,15 @@ func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Head
 
 	id := uuid.NewV4().String()
 
-	d.connections[id] = c
-
-	go d.readMessages(id)
-
 	conn := &Conn{
 		dispatcher: d,
 		conn:       c,
 		ID:         id,
 	}
+
+	d.connections[id] = conn
+
+	go d.readMessages(id)
 
 	d.handlers[id] = map[string]Handler{}
 
@@ -103,6 +104,22 @@ func (d *Dispatcher) Broadcast(room string, event string, msg interface{}) error
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+//Emit send message to connection with given ID
+func (d *Dispatcher) Emit(connectionID string, event string, msg interface{}) error {
+
+	conn, ok := d.connections[connectionID]
+	if ok == false {
+		return fmt.Errorf("Connection with %s ID doesn't exist.", connectionID)
+	}
+
+	err := conn.Emit(event, msg)
+	if err != nil {
+		return err
 	}
 
 	return nil
