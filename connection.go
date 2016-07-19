@@ -6,9 +6,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type MessageData map[string]interface{}
+type MessageData struct {
+	Event   string      `json:"event"`
+	Message interface{} `json:"message"`
+}
 
-type Handler func(*websocket.Conn, MessageData)
+type Handler func(*websocket.Conn, interface{})
 
 type Conn struct {
 	dispatcher *Dispatcher
@@ -23,11 +26,16 @@ func (c *Conn) On(event string, handler Handler) {
 }
 
 //Emit sends message for particular event
-func (c *Conn) Emit(event string, message MessageData) error {
+func (c *Conn) Emit(event string, message interface{}) error {
 
 	mt := websocket.BinaryMessage
 
-	msg, err := json.Marshal(message)
+	m := MessageData{
+		Event:   event,
+		Message: message,
+	}
+
+	msg, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
