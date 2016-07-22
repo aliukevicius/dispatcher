@@ -75,11 +75,14 @@ func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Head
 		dispatcher: d,
 		conn:       c,
 		ID:         id,
+		rooms:      map[string]map[string]*Conn{},
 	}
 
 	// ecah connection has it's seperate room with a room name as a connection ID
 	d.rooms[id] = map[string]*Conn{}
 	d.rooms[id][id] = conn
+
+	conn.rooms[id] = d.rooms[id]
 
 	d.handlers[id] = map[string]Handler{}
 
@@ -168,9 +171,17 @@ func (d *Dispatcher) Close(ConnectionID string) error {
 		return fmt.Errorf("Connection with '%s' ID not found", ConnectionID)
 	}
 
-	//todo: remove connection from each room to which it belongs to
+	// remove connection from all the rooms it belongs
+	for name, room := range conn.rooms {
+		if len(room) > 1 {
+			// remove connection from the room
+			delete(room, ConnectionID)
+		} else {
+			// delete room
+			delete(d.rooms, name)
+		}
+	}
 
-	delete(d.rooms, ConnectionID)
 	delete(d.handlers, ConnectionID)
 	conn.conn.Close()
 
@@ -186,8 +197,7 @@ func (d *Dispatcher) join(conn *Conn, roomName string) {
 
 	d.rooms[roomName][conn.ID] = conn
 
-	//todo: add room name to conneciton object
-
+	conn.rooms[roomName] = d.rooms[roomName]
 }
 
 func (d *Dispatcher) leave(conn *Conn, roomName string) {
@@ -198,13 +208,15 @@ func (d *Dispatcher) leave(conn *Conn, roomName string) {
 	}
 
 	// check if room has more than one connection
-	if len(d.rooms[roomName]) > 1 {
+	if len(conn.rooms[roomName]) > 1 {
 		// remove connection from the room
-		delete(d.rooms[roomName], conn.ID)
+		delete(conn.rooms[roomName], conn.ID)
 	} else {
 		// room has only one connection so we will remove the room
 		delete(d.rooms, roomName)
+
 	}
 
-	//todo: remove rooms name from connection
+	// remove room data from connection
+	delete(conn.rooms, roomName)
 }

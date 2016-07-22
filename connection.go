@@ -12,6 +12,8 @@ type Conn struct {
 	dispatcher *Dispatcher
 	conn       *websocket.Conn
 	ID         string
+	//rooms to which connection belongs to
+	rooms map[string]map[string]*Conn
 }
 
 //On assigns handler for event
