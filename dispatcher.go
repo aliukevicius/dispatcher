@@ -110,11 +110,22 @@ func (d *Dispatcher) readMessages(connectionID string) {
 		if msg.System {
 
 			if msg.Event == "join" {
-				d.join(c, msg.Message.(string))
-			}
 
-			if msg.Event == "leave" {
+				d.join(c, msg.Message.(string))
+			} else if msg.Event == "leave" {
+
 				d.leave(c, msg.Message.(string))
+			} else if msg.Event == "emitTo" {
+
+				m := msg.Message.(map[string]interface{})
+
+				room := m["r"].(string)
+				event := m["e"].(string)
+
+				err := d.EmitTo(room, event, m["m"])
+				if err != nil {
+					log.Println(err)
+				}
 			}
 
 			//all the system event handling ends here
@@ -135,7 +146,7 @@ func (d *Dispatcher) EmitTo(room string, event string, msg interface{}) error {
 
 	connections, ok := d.rooms[room]
 	if ok == false {
-		return fmt.Errorf("Romm with %s name doesn't exist.", room)
+		return fmt.Errorf("Room with name '%s' doesn't exist.", room)
 	}
 
 	// send message to each connection in the room
