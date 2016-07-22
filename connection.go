@@ -6,11 +6,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type MessageData struct {
-	Event   string      `json:"event"`
-	Message interface{} `json:"message"`
-}
-
 type Handler func(*websocket.Conn, interface{})
 
 type Conn struct {
@@ -28,10 +23,11 @@ func (c *Conn) On(event string, handler Handler) {
 //Emit sends message for particular event
 func (c *Conn) Emit(event string, message interface{}) error {
 
-	mt := websocket.BinaryMessage
+	mt := websocket.TextMessage
 
 	m := MessageData{
 		Event:   event,
+		System:  false,
 		Message: message,
 	}
 
