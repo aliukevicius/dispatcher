@@ -106,8 +106,6 @@ func (d *Dispatcher) readMessages(connectionID string) {
 			break
 		}
 
-		log.Println(msg)
-
 		// handle system events
 		if msg.System {
 
@@ -115,8 +113,8 @@ func (d *Dispatcher) readMessages(connectionID string) {
 				d.join(c, msg.Message.(string))
 			}
 
-			if msg.Event == "leve" {
-				d.leve(c, msg.Message.(string))
+			if msg.Event == "leave" {
+				d.leave(c, msg.Message.(string))
 			}
 
 			//all the system event handling ends here
@@ -181,7 +179,7 @@ func (d *Dispatcher) join(conn *Conn, roomName string) {
 
 }
 
-func (d *Dispatcher) leve(conn *Conn, roomName string) {
+func (d *Dispatcher) leave(conn *Conn, roomName string) {
 
 	_, ok := d.rooms[roomName]
 	if ok == false {
