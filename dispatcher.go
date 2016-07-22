@@ -171,7 +171,7 @@ func (d *Dispatcher) Close(ConnectionID string) error {
 		return fmt.Errorf("Connection with '%s' ID not found", ConnectionID)
 	}
 
-	// remove connection from all the rooms it belongs
+	// remove connection from all the rooms it belongs to
 	for name, room := range conn.rooms {
 		if len(room) > 1 {
 			// remove connection from the room
@@ -219,4 +219,11 @@ func (d *Dispatcher) leave(conn *Conn, roomName string) {
 
 	// remove room data from connection
 	delete(conn.rooms, roomName)
+}
+
+func DispatcherJs(w http.ResponseWriter, r *http.Request) {
+
+	w.Header()["Content-Type"] = []string{"application/javascript"}
+
+	w.Write(ClientJs)
 }
