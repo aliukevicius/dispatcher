@@ -136,7 +136,7 @@ func (d *Dispatcher) readMessages(connectionID string) {
 		}
 
 		if handler, ok := d.handlers[c.ID][msg.Event]; ok {
-			handler(c.conn, msg.Message)
+			handler(c, msg.Message)
 		}
 	}
 
@@ -221,6 +221,7 @@ func (d *Dispatcher) leave(conn *Conn, roomName string) {
 	delete(conn.rooms, roomName)
 }
 
+//DispatcherJs handles client js code requests
 func DispatcherJs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header()["Content-Type"] = []string{"application/javascript"}

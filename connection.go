@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Handler func(*websocket.Conn, interface{})
+type Handler func(*Conn, interface{})
 
 type Conn struct {
 	dispatcher *Dispatcher
