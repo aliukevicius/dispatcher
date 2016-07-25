@@ -98,7 +98,12 @@ func (d *Dispatcher) readMessages(connectionID string) {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+			) == false {
+				log.Println("read:", err)
+			}
+
 			break
 		}
 
@@ -183,7 +188,7 @@ func (d *Dispatcher) Close(ConnectionID string) error {
 	}
 
 	delete(d.handlers, ConnectionID)
-	conn.conn.Close()
+	conn.close()
 
 	return nil
 }

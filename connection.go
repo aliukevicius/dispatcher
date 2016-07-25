@@ -8,12 +8,15 @@ import (
 
 type Handler func(*Conn, interface{})
 
+type ConnCloseHandler func(*Conn)
+
 type Conn struct {
 	dispatcher *Dispatcher
 	conn       *websocket.Conn
 	ID         string
 	//rooms to which connection belongs to
-	rooms map[string]map[string]*Conn
+	rooms        map[string]map[string]*Conn
+	closeHandler ConnCloseHandler
 }
 
 //On assigns handler for event
@@ -44,4 +47,14 @@ func (c *Conn) Emit(event string, message interface{}) error {
 	}
 
 	return nil
+}
+
+//OnClose subscribe to connection close
+func (c *Conn) OnClose(h ConnCloseHandler) {
+	c.closeHandler = h
+}
+
+func (c *Conn) close() {
+	c.conn.Close()
+	c.closeHandler(c)
 }
