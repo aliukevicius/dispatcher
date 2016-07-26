@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/satori/go.uuid"
@@ -76,6 +77,7 @@ func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Head
 		conn:       c,
 		ID:         id,
 		rooms:      map[string]map[string]*Conn{},
+		lock:       &sync.Mutex{},
 	}
 
 	// ecah connection has it's seperate room with a room name as a connection ID

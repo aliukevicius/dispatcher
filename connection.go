@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -17,6 +18,8 @@ type Conn struct {
 	//rooms to which connection belongs to
 	rooms        map[string]map[string]*Conn
 	closeHandler ConnCloseHandler
+
+	lock *sync.Mutex
 }
 
 //On assigns handler for event
@@ -27,6 +30,8 @@ func (c *Conn) On(event string, handler Handler) {
 
 //Emit sends message for particular event
 func (c *Conn) Emit(event string, message interface{}) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	mt := websocket.TextMessage
 
