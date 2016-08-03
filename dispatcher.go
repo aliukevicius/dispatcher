@@ -183,7 +183,7 @@ func (d *Dispatcher) Broadcast(room string, message interface{}) error {
 
 	connections, ok := d.rooms[room]
 	if ok == false {
-		return fmt.Errorf("Room '%s' doesn't exist.", room)
+		return nil
 	}
 
 	msg := MessageData{
