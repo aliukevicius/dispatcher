@@ -2,22 +2,31 @@ package dispatcher
 
 var ClientJs = []byte(`var Dispatcher = (function () { 
 
-    var conf = {};    
+    var conf = {
+        onJoin: null,
+        onLeve: null,
+        handlers: {},
+        roomHandlers: {},
+        conn: null
+    };    
 
     function Dispatcher(endpoint) {
 
         conf.conn = new WebSocket(endpoint); 
-        conf.onJoin = null;
-        conf.onLeve = null;
 
-        conf.handlers = {};        
+        conf.conn.onmessage = function (msg) {
+            var data = JSON.parse(msg.data);
 
-        conf.conn.onmessage = function (evt) {
-            
-            var data = JSON.parse(evt.data);
-
-            if (conf.handlers.hasOwnProperty(data.e)) {
-                conf.handlers[data.e](data.m);
+            if (data.s === true) {
+                if (data.e == "broadcast") {
+                    if (conf.roomHandlers.hasOwnProperty(data.m.r)) {
+                        conf.roomHandlers[data.m.r](data.m.m);
+                    }
+                }
+            } else {
+                if (conf.handlers.hasOwnProperty(data.e)) {
+                    conf.handlers[data.e](data.m);
+                }
             }
         };        
     }    
@@ -63,11 +72,26 @@ var ClientJs = []byte(`var Dispatcher = (function () {
         conf.conn.send(JSON.stringify(msg));
     };
 
+    Dispatcher.prototype.Broadcast = function (room, message) {
+        msg = {
+            e: "broadcast",
+            s: true,
+            m: {
+                r: room,
+                m: message
+            }
+        };        
+
+        conf.conn.send(JSON.stringify(msg));
+    };
+
     Dispatcher.prototype.On = function (event, cb) {
         conf.handlers[event] = cb;
     };
 
-    Dispatcher.prototype.Join = function (room) {
+    Dispatcher.prototype.Join = function (room, cb) {
+        conf.roomHandlers[room] = cb;
+
         msg = {
             e: "join",
             s: true,

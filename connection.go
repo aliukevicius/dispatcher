@@ -30,10 +30,6 @@ func (c *Conn) On(event string, handler Handler) {
 
 //Emit sends message for particular event
 func (c *Conn) Emit(event string, message interface{}) error {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	mt := websocket.TextMessage
 
 	m := MessageData{
 		Event:   event,
@@ -41,10 +37,19 @@ func (c *Conn) Emit(event string, message interface{}) error {
 		Message: message,
 	}
 
-	msg, err := json.Marshal(m)
+	return c.emit(m)
+}
+
+func (c *Conn) emit(message MessageData) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	msg, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
+
+	mt := websocket.TextMessage
 
 	err = c.conn.WriteMessage(mt, msg)
 	if err != nil {
@@ -61,5 +66,8 @@ func (c *Conn) OnClose(h ConnCloseHandler) {
 
 func (c *Conn) close() {
 	c.conn.Close()
-	c.closeHandler(c)
+
+	if c.closeHandler != nil {
+		c.closeHandler(c)
+	}
 }

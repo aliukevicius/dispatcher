@@ -17,6 +17,11 @@ type MessageData struct {
 	Message interface{} `json:"m"`
 }
 
+type BroadcastMessage struct {
+	Room    string      `json:"r"`
+	Message interface{} `json:"m"`
+}
+
 type DispatcherConfig struct {
 	ReadBufferSize  int
 	WriteBufferSize int
@@ -26,8 +31,9 @@ type Dispatcher struct {
 	config   *DispatcherConfig
 	upgrader websocket.Upgrader
 
-	handlers map[string]map[string]Handler
-	rooms    map[string]map[string]*Conn
+	handlers    map[string]map[string]Handler
+	rooms       map[string]map[string]*Conn
+	connections map[string]*Conn
 }
 
 var defaultDispatcherConfig = &DispatcherConfig{
@@ -47,8 +53,9 @@ func NewDispatcher(config *DispatcherConfig) *Dispatcher {
 			ReadBufferSize:  config.ReadBufferSize,
 			WriteBufferSize: config.WriteBufferSize,
 		},
-		handlers: map[string]map[string]Handler{},
-		rooms:    map[string]map[string]*Conn{},
+		handlers:    map[string]map[string]Handler{},
+		rooms:       map[string]map[string]*Conn{},
+		connections: map[string]*Conn{},
 	}
 
 	return d
@@ -80,12 +87,7 @@ func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Head
 		lock:       &sync.Mutex{},
 	}
 
-	// ecah connection has it's seperate room with a room name as a connection ID
-	d.rooms[id] = map[string]*Conn{}
-	d.rooms[id][id] = conn
-
-	conn.rooms[id] = d.rooms[id]
-
+	d.connections[id] = conn
 	d.handlers[id] = map[string]Handler{}
 
 	go d.readMessages(id)
@@ -95,7 +97,7 @@ func (d *Dispatcher) Handle(w http.ResponseWriter, r *http.Request, h *http.Head
 
 func (d *Dispatcher) readMessages(connectionID string) {
 
-	c := d.rooms[connectionID][connectionID]
+	c := d.connections[connectionID]
 
 	for {
 		_, message, err := c.conn.ReadMessage()
@@ -129,10 +131,19 @@ func (d *Dispatcher) readMessages(connectionID string) {
 
 				m := msg.Message.(map[string]interface{})
 
-				room := m["r"].(string)
+				recipient := m["r"].(string)
 				event := m["e"].(string)
 
-				err := d.EmitTo(room, event, m["m"])
+				err := d.EmitTo(recipient, event, m["m"])
+				if err != nil {
+					log.Println(err)
+				}
+			} else if msg.Event == "broadcast" {
+
+				m := msg.Message.(map[string]interface{})
+				room := m["r"].(string)
+
+				err := d.Broadcast(room, m["m"])
 				if err != nil {
 					log.Println(err)
 				}
@@ -152,16 +163,40 @@ func (d *Dispatcher) readMessages(connectionID string) {
 }
 
 //EmitTo send message to all connections in the room
-func (d *Dispatcher) EmitTo(room string, event string, msg interface{}) error {
+func (d *Dispatcher) EmitTo(recipient string, event string, msg interface{}) error {
+
+	conn, ok := d.connections[recipient]
+	if ok == false {
+		return fmt.Errorf("Recipient '%s' doesn't exist.", recipient)
+	}
+
+	err := conn.Emit(event, msg)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//Broadcast send message to a room subscribers
+func (d *Dispatcher) Broadcast(room string, message interface{}) error {
 
 	connections, ok := d.rooms[room]
 	if ok == false {
-		return fmt.Errorf("Room with name '%s' doesn't exist.", room)
+		return fmt.Errorf("Room '%s' doesn't exist.", room)
 	}
 
-	// send message to each connection in the room
+	msg := MessageData{
+		Event:  "broadcast",
+		System: true,
+		Message: BroadcastMessage{
+			Room:    room,
+			Message: message,
+		},
+	}
+
 	for _, conn := range connections {
-		err := conn.Emit(event, msg)
+		err := conn.emit(msg)
 		if err != nil {
 			return err
 		}
@@ -173,7 +208,7 @@ func (d *Dispatcher) EmitTo(room string, event string, msg interface{}) error {
 //Close connection
 func (d *Dispatcher) Close(ConnectionID string) error {
 
-	conn, ok := d.rooms[ConnectionID][ConnectionID]
+	conn, ok := d.connections[ConnectionID]
 	if ok == false {
 		return fmt.Errorf("Connection with '%s' ID not found", ConnectionID)
 	}
@@ -190,6 +225,7 @@ func (d *Dispatcher) Close(ConnectionID string) error {
 	}
 
 	delete(d.handlers, ConnectionID)
+	delete(d.connections, ConnectionID)
 	conn.close()
 
 	return nil
