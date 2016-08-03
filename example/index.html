@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Dispatcher</title>
+        <meta charset="UTF-8">
+        
+    </head>
+    <body>
+    
+    <script type="text/javascript" src="/dispatcher.js"></script>
+
+    <script type="text/javascript">
+
+        var d = new Dispatcher('ws://localhost:8080/ws');
+
+        d.OnConnect(function () {
+            console.log("Connected");               
+
+            d.On('newUser', function (data) {
+                console.log("New user: ", data); 
+            });
+        
+            msg = {
+                name: "John Doe",
+                email: "john@dispatcher.doe"
+            }; 
+
+            d.Emit("createUser", msg);
+
+            d.Join("time", function (data) {
+                console.log("Time: ", data);
+            });
+
+            d.Join("chat", function (data) {
+                console.log("Chat message: ", data)
+            });
+
+            d.Broadcast("chat", "Awesome chat message!");
+            
+        });
+
+        d.OnDisconnect(function () {
+            console.log("Disconnected"); 
+        });
+
+    </script>
+    </body>
+</html>
