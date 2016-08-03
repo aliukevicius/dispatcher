@@ -1,5 +1,6 @@
 # Dispatcher (WIP)
 
+Go package for easier work with websockets.
 
 ## Example
 
