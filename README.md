@@ -5,13 +5,13 @@ Go package for easier work with websockets.
 ## Install
 
 ```
-go get http://gopkg.in/aliukevicius/dispatcher.v1
+go get gopkg.in/aliukevicius/dispatcher.v1
 ```
 
 ## Import
 
 ```
-import gopkg.in/aliukevicius/dispatcher.v1
+import "gopkg.in/aliukevicius/dispatcher.v1"
 ```
 
 ## Example
